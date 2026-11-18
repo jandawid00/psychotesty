@@ -1,0 +1,59 @@
+{
+  "_uwaga": "Wartości w podwójnych nawiasach kwadratowych [[...]] to dane do uzupełnienia. Na stronie są podświetlone na żółto i nie trafiają do danych strukturalnych.",
+
+  "ukryj_przed_google": true,
+  "_ukryj_uwaga": "true = strona w przygotowaniu: wszystkie podstrony mają noindex, nie powstaje sitemap.xml ani llms.txt. Zmień na false, gdy dane pracowni będą uzupełnione.",
+
+  "domena": "https://czestochowapsychotesty.pl",
+  "marka": "Psychotesty Częstochowa",
+  "nazwa_firmy": "[[Pracownia Psychologiczna Monika Dawid]]",
+  "psycholog": "Monika Dawid",
+  "psycholog_rola": "psycholog transportu",
+
+  "telefon": "[[000 000 000]]",
+  "email": "[[adres e-mail]]",
+  "ulica": "[[ulica i numer]]",
+  "kod": "[[42-200]]",
+  "miasto": "Częstochowa",
+  "wojewodztwo": "śląskie",
+  "geo_lat": "",
+  "geo_lng": "",
+
+  "godziny": [
+    ["poniedziałek – piątek", "[[8:00–16:00]]"],
+    ["sobota", "[[po umówieniu]]"],
+    ["niedziela", "nieczynne"]
+  ],
+  "godziny_schema": [],
+
+  "wpis_pracowni": "[[numer wpisu]]",
+  "wpis_psychologa": "[[numer]]",
+  "nip": "[[NIP]]",
+
+  "cena_kierowcy": "200 zł",
+  "czas": "[[ok. 1,5 godz.]]",
+  "orzeczenie": "[[w dniu badania]]",
+  "terminy": "[[1–2 dni]]",
+  "cena_operator": "[[… zł]]",
+  "czas_operator": "[[ok. 1 godz.]]",
+  "platnosci": "[[gotówka, karta, BLIK]]",
+  "parking": "[[bezpłatny parking przy budynku]]",
+
+  "notka": "[[Krótka notka o psychologu: wykształcenie, studia podyplomowe z psychologii transportu, doświadczenie w badaniach kierowców.]]",
+  "dojazd": "[[Opis dojazdu: najbliższe skrzyżowanie lub przystanek, wejście do budynku, piętro.]]",
+
+  "komunikat_pokaz": true,
+  "komunikat_tytul": "Zmiana od 14 listopada 2026 r.",
+  "komunikat_tekst": "Badanie psychologiczne kierowcy kosztuje 200 zł, wcześniej 150 zł. To opłata urzędowa, taka sama w każdej pracowni.",
+  "komunikat_link": "/poradnik/psychotesty-200-zl-od-14-listopada-2026/",
+  "komunikat_link_tekst": "Kogo dotyczy zmiana",
+
+  "aktualizacja": "2026-11-18",
+
+  "okolice": {
+    "powiat częstochowski": ["Blachownia", "Poczesna", "Olsztyn", "Mykanów", "Rędziny", "Konopiska", "Mstów", "Kłomnice", "Kamienica Polska", "Janów", "Koniecpol", "Kruszyna", "Lelów", "Przyrów", "Dąbrowa Zielona", "Starcza"],
+    "powiat kłobucki": ["Kłobuck", "Krzepice", "Wręczyca Wielka", "Miedźno", "Panki", "Przystajń", "Popów", "Lipie", "Opatów"],
+    "powiat myszkowski": ["Myszków", "Żarki", "Koziegłowy", "Poraj", "Niegowa"],
+    "powiat lubliniecki": ["Lubliniec", "Herby", "Koszęcin", "Boronów", "Woźniki", "Kochanowice"]
+  }
+}

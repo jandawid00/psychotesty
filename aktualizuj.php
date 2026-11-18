@@ -9,6 +9,8 @@
  *
  * Usuwa wyłącznie pliki, które sam wcześniej wgrał (ich lista leży w katalogu stanu,
  * poza katalogiem strony). Plików utworzonych na serwerze w inny sposób nie rusza.
+ * Po pobraniu plików uruchamia generator (silnik/generuj.php), który składa strony HTML
+ * z treści edytowanych w panelu.
  */
 
 define('AKT_REPO', 'jandawid00/psychotesty');
@@ -189,12 +191,28 @@ if ($bledy) {
     akt_koniec('Błąd: nie udało się zapisać ' . count($bledy) . ' plików (pierwszy: ' . $bledy[0] . '). Niczego nie usunięto.', 500);
 }
 
+/* wygenerowanie stron z aktualnych treści (silnik jest częścią pobranych plików) */
+$wygenerowane = array();
+$raport = '';
+if (is_file($tu . '/silnik/generuj.php')) {
+    try {
+        require_once $tu . '/silnik/generuj.php';
+        $wynik = generuj_strone($tu);
+        $wygenerowane = $wynik['pliki'];
+        $raport = ' Wygenerowano plików: ' . count($wygenerowane) . ', pól do uzupełnienia: ' . $wynik['braki'] . ($wynik['ukryta'] ? ', strona ukryta przed wyszukiwarkami' : '') . '. Treści z panelu: ' . ($wynik['dane_poza_strona'] ? 'poza katalogiem strony' : 'w zablokowanym podkatalogu strony') . '.'
+            . ($wynik['ostrzezenia'] ? ' Ostrzeżenia PHP (' . count($wynik['ostrzezenia']) . '): ' . implode(' | ', array_slice($wynik['ostrzezenia'], 0, 4)) : ' Ostrzeżeń PHP: 0.')
+            . ' PHP ' . PHP_VERSION . '.';
+    } catch (Throwable $e) {
+        akt_koniec('Pliki pobrane, ale generowanie strony nie powiodło się: ' . $e->getMessage() . ' Strony zostały w poprzednim stanie.', 500);
+    }
+}
+
 /* usunięcie plików, które ten skrypt wgrał wcześniej, a których nie ma już w repozytorium */
 $lista = $stan . '/wgrane-pliki.json';
 $stare = is_file($lista) ? json_decode((string) file_get_contents($lista), true) : array();
 $usuniete = 0;
 if (is_array($stare)) {
-    foreach (array_diff($stare, $nowe) as $rel) {
+    foreach (array_diff($stare, $nowe, $wygenerowane) as $rel) {
         if (!is_string($rel) || !akt_bezpieczna($rel) || !is_file($tu . '/' . $rel)) {
             continue;
         }
@@ -211,4 +229,4 @@ file_put_contents($lista, json_encode($nowe));
 file_put_contents($stan . '/wersja.txt', $wersja . "\n" . date('c') . "\n");
 
 akt_koniec('Zaktualizowano. Wersja: ' . ($wersja !== '' ? substr($wersja, 0, 7) : 'nieznana')
-    . '. Plików strony: ' . count($nowe) . ', zmienionych: ' . $zmienione . ', usuniętych: ' . $usuniete . '.');
+    . '. Plików z repozytorium: ' . count($nowe) . ', zmienionych: ' . $zmienione . ', usuniętych: ' . $usuniete . '.' . $raport);
