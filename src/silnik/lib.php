@@ -4,7 +4,20 @@ declare(strict_types=1);
 /* Wspólne funkcje generatora strony. Treści leżą w katalogu tresc/, szablony w szablony.php. */
 
 const SRC = __DIR__;
-const TRESC = __DIR__ . '/tresc';
+const TRESC_START = __DIR__ . '/tresc-startowa';
+
+/** Katalog z aktualnymi treściami (edytowanymi w panelu). Bez niego używana jest treść startowa. */
+function tresc_kat(): string
+{
+    return $GLOBALS['PSY_TRESC'] ?? TRESC_START;
+}
+
+/** Plik treści: wersja edytowana, a gdy jej nie ma, startowa. */
+function plik_tresci(string $rel): string
+{
+    $p = tresc_kat() . '/' . $rel;
+    return is_file($p) ? $p : TRESC_START . '/' . $rel;
+}
 
 const MENU = [
     ['/#badania', 'Badania'],
@@ -29,20 +42,46 @@ $GLOBALS['PODGLAD'] = false;
 
 /* ---------- ustawienia ---------- */
 
+/** Czyści dane wczytane w tym żądaniu (panel robi to po zapisie, przed ponownym generowaniem). */
+function pamiec_wyczysc(): void
+{
+    $GLOBALS['PSY_PAMIEC'] = [];
+}
+
+/** Ustawienia zapisane w panelu: tylko zmienione klucze, reszta pochodzi z treści startowej. */
+function ust_zywe(): array
+{
+    $zywe = tresc_kat() . '/ustawienia.json';
+    if (tresc_kat() === TRESC_START || !is_file($zywe)) {
+        return [];
+    }
+    $z = json_decode((string) file_get_contents($zywe), true);
+    return is_array($z) ? $z : [];
+}
+
+function ust_start(): array
+{
+    return json_decode((string) file_get_contents(TRESC_START . '/ustawienia.json'), true, 512, JSON_THROW_ON_ERROR);
+}
+
 function ust(?string $k = null): mixed
 {
-    static $u = null;
+    $u = &$GLOBALS['PSY_PAMIEC']['ust'];
     if ($u === null) {
-        $u = json_decode((string) file_get_contents(TRESC . '/ustawienia.json'), true, 512, JSON_THROW_ON_ERROR);
+        // Wartości startowe uzupełniają klucze, których nie ma jeszcze w edytowanych ustawieniach.
+        $u = array_merge(ust_start(), ust_zywe());
     }
     return $k === null ? $u : ($u[$k] ?? '');
 }
 
 function cennik(): array
 {
-    static $c = null;
+    $c = &$GLOBALS['PSY_PAMIEC']['cennik'];
     if ($c === null) {
-        $c = json_decode((string) file_get_contents(TRESC . '/cennik.json'), true, 512, JSON_THROW_ON_ERROR);
+        $c = json_decode((string) file_get_contents(plik_tresci('cennik.json')), true);
+        if (!is_array($c)) {
+            $c = json_decode((string) file_get_contents(TRESC_START . '/cennik.json'), true, 512, JSON_THROW_ON_ERROR);
+        }
     }
     return $c;
 }
@@ -82,6 +121,9 @@ function inline(string $s): string
     $s = preg_replace('/\[\[(.+?)\]\]/u', '<span class="brak">$1</span>', $s) ?? $s;
     $s = preg_replace('/\*\*(.+?)\*\*/u', '<strong>$1</strong>', $s) ?? $s;
     $s = preg_replace_callback('/\[([^\[\]]+)\]\(([^)\s]+)\)/u', static function (array $m): string {
+        if (!preg_match('#^(/|\#|https?://|tel:|mailto:)#', $m[2])) {
+            return $m[1];
+        }
         $zew = preg_match('#^https?://#', $m[2]) ? ' rel="noopener"' : '';
         return '<a href="' . $m[2] . '"' . $zew . '>' . $m[1] . '</a>';
     }, $s) ?? $s;
@@ -165,6 +207,15 @@ function md(string $src): string
     return implode("\n", $out);
 }
 
+/** Sama liczba z ceny ("200 zł" → "200"); pole nieuzupełnione albo bez liczby → null. */
+function cena_liczba(?string $s): ?string
+{
+    if ($s === null || str_contains($s, '[[') || !preg_match('/\d+(?:[.,]\d{1,2})?/', $s, $m)) {
+        return null;
+    }
+    return str_replace(',', '.', $m[0]);
+}
+
 /** Czysty tekst (do danych strukturalnych i llms.txt). */
 function tekst(string $md): string
 {
@@ -184,9 +235,17 @@ function tokeny(string $s): string
 }
 
 /** Plik .md z nagłówkiem "klucz: wartość" i opcjonalną częścią === pytania ===. */
-function wczytaj_md(string $plik): array
+function wczytaj_md(string $plik, bool $surowe = false): array
 {
-    $raw = tokeny((string) file_get_contents($plik));
+    return rozloz_md((string) file_get_contents($plik), $surowe);
+}
+
+function rozloz_md(string $raw, bool $surowe = false): array
+{
+    $raw = str_replace("\r\n", "\n", $raw);
+    if (!$surowe) {
+        $raw = tokeny($raw);
+    }
     $meta = [];
     $body = $raw;
     if (preg_match('/^---\R(.*?)\R---\R?(.*)$/su', $raw, $m)) {
@@ -272,10 +331,10 @@ function ld_pracownia(): array
     }
     $oferty = [];
     foreach (USLUGI as $s) {
-        $m = wczytaj_md(TRESC . "/uslugi/$s.md")['meta'];
+        $m = wczytaj_md(plik_tresci("uslugi/$s.md"))['meta'];
         $o = ['@type' => 'Offer', 'itemOffered' => ['@type' => 'Service', 'name' => $m['h1'], 'url' => "$d/$s/"]];
-        if (!empty($m['cena'])) {
-            $o['price'] = $m['cena'];
+        if (cena_liczba($m['cena'] ?? '') !== null) {
+            $o['price'] = cena_liczba($m['cena']);
             $o['priceCurrency'] = 'PLN';
         }
         $oferty[] = $o;
@@ -318,6 +377,9 @@ function ld_pracownia(): array
     if ($u['geo_lat'] !== '' && $u['geo_lng'] !== '') {
         $g['geo'] = ['@type' => 'GeoCoordinates', 'latitude' => (float) $u['geo_lat'], 'longitude' => (float) $u['geo_lng']];
     }
+    if (!$u['godziny_schema']) {
+        $u['godziny_schema'] = godziny_z_tekstu($u['godziny']);
+    }
     if ($u['godziny_schema']) {
         $g['openingHoursSpecification'] = array_map(static fn(array $x): array => ['@type' => 'OpeningHoursSpecification', 'dayOfWeek' => $x[0], 'opens' => $x[1], 'closes' => $x[2]], $u['godziny_schema']);
     }
@@ -325,6 +387,44 @@ function ld_pracownia(): array
         $g['hasMap'] = $m;
     }
     return $g;
+}
+
+/** Zamienia wiersze godzin ("poniedziałek – piątek" / "8:00–16:00") na format schema.org. */
+function godziny_z_tekstu(array $wiersze): array
+{
+    $dni = ['pon' => 'Monday', 'wt' => 'Tuesday', 'śr' => 'Wednesday', 'sr' => 'Wednesday', 'czw' => 'Thursday', 'pi' => 'Friday', 'pt' => 'Friday', 'sob' => 'Saturday', 'nie' => 'Sunday', 'ndz' => 'Sunday'];
+    $kolej = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    $dzien = static function (string $t) use ($dni): ?string {
+        $t = mb_strtolower(trim($t));
+        foreach ($dni as $pocz => $ang) {
+            if (str_starts_with($t, $pocz)) {
+                return $ang;
+            }
+        }
+        return null;
+    };
+    $out = [];
+    foreach ($wiersze as $w) {
+        if (!is_array($w) || count($w) < 2 || brak($w[0]) || brak($w[1])) {
+            continue;
+        }
+        if (!preg_match('/^\s*(\d{1,2})[:.](\d{2})\s*[–—-]\s*(\d{1,2})[:.](\d{2})\s*$/u', (string) $w[1], $g)) {
+            continue;
+        }
+        $czesci = preg_split('/\s*[–—-]\s*/u', (string) $w[0]) ?: [];
+        $od = $dzien($czesci[0] ?? '');
+        $do = isset($czesci[1]) ? $dzien($czesci[1]) : $od;
+        if ($od === null || $do === null) {
+            continue;
+        }
+        $i = array_search($od, $kolej, true);
+        $j = array_search($do, $kolej, true);
+        if ($j < $i) {
+            continue;
+        }
+        $out[] = [array_slice($kolej, $i, $j - $i + 1), sprintf('%02d:%s', $g[1], $g[2]), sprintf('%02d:%s', $g[3], $g[4])];
+    }
+    return $out;
 }
 
 function ld_okruszki(array $sciezka): array

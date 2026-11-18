@@ -25,18 +25,42 @@ function adres_html(): string
 
 function meta_uslugi(string $slug): array
 {
-    static $pamiec = [];
-    return $pamiec[$slug] ??= wczytaj_md(TRESC . "/uslugi/$slug.md");
+    $pamiec = &$GLOBALS['PSY_PAMIEC']['uslugi'];
+    $pamiec ??= [];
+    return $pamiec[$slug] ??= wczytaj_md(plik_tresci("uslugi/$slug.md"));
+}
+
+/** Pliki artykułów: startowe oraz dodane lub zmienione w panelu, bez usuniętych. Zwraca slug => ścieżka. */
+function artykuly_pliki(): array
+{
+    $pliki = [];
+    foreach (glob(TRESC_START . '/poradnik/*.md') ?: [] as $p) {
+        $pliki[basename($p, '.md')] = $p;
+    }
+    if (tresc_kat() !== TRESC_START) {
+        foreach (glob(tresc_kat() . '/poradnik/*.md') ?: [] as $p) {
+            $pliki[basename($p, '.md')] = $p;
+        }
+        $usuniete = json_decode((string) @file_get_contents(tresc_kat() . '/poradnik/_usuniete.json'), true);
+        foreach (is_array($usuniete) ? $usuniete : [] as $s) {
+            // Usunięty artykuł startowy; zapisany ponownie w panelu wraca na stronę.
+            if (is_string($s) && !is_file(tresc_kat() . '/poradnik/' . $s . '.md')) {
+                unset($pliki[$s]);
+            }
+        }
+    }
+    return $pliki;
 }
 
 function artykuly(): array
 {
-    static $lista = null;
+    $lista = &$GLOBALS['PSY_PAMIEC']['artykuly'];
     if ($lista === null) {
         $lista = [];
-        foreach (glob(TRESC . '/poradnik/*.md') ?: [] as $plik) {
+        foreach (artykuly_pliki() as $slug => $plik) {
             $a = wczytaj_md($plik);
-            $a['slug'] = basename($plik, '.md');
+            $a['slug'] = $slug;
+            $a['meta'] += ['tytul' => '', 'opis' => '', 'h1' => $slug, 'lead' => '', 'skrot' => '', 'data' => '2026-01-01'];
             $lista[] = $a;
         }
         usort($lista, static fn(array $a, array $b): int => [$b['meta']['data'], $a['slug']] <=> [$a['meta']['data'], $b['slug']]);
@@ -221,7 +245,7 @@ function czesc_dol(): string
   </div>
   <div class="w dol__stopka">
     <p>Pracownia wpisana do rejestru przedsiębiorców prowadzących pracownię psychologiczną Marszałka Województwa Śląskiego, nr <?= inline($u['wpis_pracowni']) ?>. NIP <?= inline($u['nip']) ?>.</p>
-    <p>Stan prawny treści: <?= e(data_pl($u['aktualizacja'])) ?></p>
+    <p>Ostatnia aktualizacja: <?= e(data_pl($u['aktualizacja'])) ?></p>
   </div>
 </footer>
 <?php
@@ -297,7 +321,7 @@ function str_start(): array
 {
     $u = ust();
     $d = $u['domena'];
-    $faq = array_slice(wczytaj_md(TRESC . '/pytania.md')['faq'], 0, 7);
+    $faq = array_slice(wczytaj_md(plik_tresci('pytania.md'))['faq'], 0, 7);
     ob_start(); ?>
 <section class="hero">
   <div class="w hero__w">
@@ -322,9 +346,11 @@ function str_start(): array
 <section class="wstep">
   <div class="w wstep__w">
     <p class="wstep__t"><?= inline('Pracownia psychologiczna w Częstochowie. Badamy kierowców zawodowych, kandydatów na prawo jazdy kat. C i D, taksówkarzy, kierowców pojazdów uprzywilejowanych, osoby skierowane przez starostę oraz operatorów maszyn. Badania prowadzi ' . $u['psycholog'] . ', ' . $u['psycholog_rola'] . '.') ?></p>
+<?php if (!empty($u['komunikat_pokaz']) && ($u['komunikat_tytul'] !== '' || $u['komunikat_tekst'] !== '')): ?>
     <div class="objazd">
-      <p class="objazd__pole"><strong><?= inline('Zmiana od 14 listopada 2026 r.') ?></strong> <?= inline('Badanie psychologiczne kierowcy kosztuje 200 zł, wcześniej 150 zł. To opłata urzędowa, taka sama w każdej pracowni.') ?> <a href="/poradnik/psychotesty-200-zl-od-14-listopada-2026/">Kogo dotyczy zmiana</a></p>
+      <p class="objazd__pole"><?php if ($u['komunikat_tytul'] !== ''): ?><strong><?= inline($u['komunikat_tytul']) ?></strong> <?php endif; ?><?= inline($u['komunikat_tekst']) ?><?php if ($u['komunikat_link'] !== '' && $u['komunikat_link_tekst'] !== ''): ?> <a href="<?= e($u['komunikat_link']) ?>"><?= inline($u['komunikat_link_tekst']) ?></a><?php endif; ?></p>
     </div>
+<?php endif; ?>
   </div>
 </section>
 
@@ -385,7 +411,7 @@ function str_start(): array
     <div class="osoba__t">
       <h2>Badania prowadzi <?= e($u['psycholog']) ?></h2>
       <p class="osoba__rola"><?= e(ucfirst_pl($u['psycholog_rola'])) ?></p>
-      <p><?= inline('[[Krótka notka o psychologu: wykształcenie, studia podyplomowe z psychologii transportu, doświadczenie w badaniach kierowców.]]') ?></p>
+      <?= md($u['notka']) ?>
       <p><?= inline('Przed każdym testem jest instrukcja i próba. Na pytania zawsze jest czas.') ?></p>
       <dl class="wpisy">
         <div><dt>Ewidencja psychologów transportu</dt><dd>Marszałek Województwa Śląskiego, nr <?= inline($u['wpis_psychologa']) ?></dd></div>
@@ -494,8 +520,8 @@ function str_usluga(string $slug): array
         'provider' => ['@id' => $d . '/#pracownia'],
         'areaServed' => ['@type' => 'City', 'name' => 'Częstochowa'],
     ];
-    if (!empty($m['cena'])) {
-        $usluga['offers'] = ['@type' => 'Offer', 'price' => $m['cena'], 'priceCurrency' => 'PLN', 'url' => "$d/$slug/"];
+    if (cena_liczba($m['cena'] ?? '') !== null) {
+        $usluga['offers'] = ['@type' => 'Offer', 'price' => cena_liczba($m['cena']), 'priceCurrency' => 'PLN', 'url' => "$d/$slug/"];
     }
     $ld = [ld_pracownia(), $usluga, ld_okruszki($sciezka)];
     if ($s['faq']) {
@@ -569,7 +595,7 @@ function str_kontakt(): array
       <h2 id="adres">Adres</h2>
       <address class="adres"><strong><?= inline($u['nazwa_firmy']) ?></strong><br><?= adres_html() ?><br><?= inline($u['email']) ?></address>
       <h2 id="dojazd">Jak dojechać</h2>
-      <p><?= inline('[[Opis dojazdu: najbliższe skrzyżowanie lub przystanek, wejście do budynku, piętro.]]') ?></p>
+      <?= md($u['dojazd']) ?>
       <p><?= inline(ucfirst_pl($u['parking'])) ?>.</p>
       <h2 id="jak-sie-umowic">Jak się umówić</h2>
       <ol>
@@ -609,7 +635,7 @@ function str_kontakt(): array
 
 function str_pytania(): array
 {
-    $s = wczytaj_md(TRESC . '/pytania.md');
+    $s = wczytaj_md(plik_tresci('pytania.md'));
     $m = $s['meta'];
     $sciezka = [['/', 'Strona główna'], ['/pytania/', 'Pytania']];
     ob_start(); ?>
@@ -728,7 +754,7 @@ function str_artykul(array $a): array
 
 function str_polityka(): array
 {
-    $s = wczytaj_md(TRESC . '/polityka-prywatnosci.md');
+    $s = wczytaj_md(plik_tresci('polityka-prywatnosci.md'));
     $m = $s['meta'];
     $sciezka = [['/', 'Strona główna'], ['/polityka-prywatnosci/', 'Polityka prywatności']];
     return [

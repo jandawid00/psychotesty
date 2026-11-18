@@ -39,7 +39,16 @@
   "platnosci": "[[gotówka, karta, BLIK]]",
   "parking": "[[bezpłatny parking przy budynku]]",
 
-  "aktualizacja": "2026-11-15",
+  "notka": "[[Krótka notka o psychologu: wykształcenie, studia podyplomowe z psychologii transportu, doświadczenie w badaniach kierowców.]]",
+  "dojazd": "[[Opis dojazdu: najbliższe skrzyżowanie lub przystanek, wejście do budynku, piętro.]]",
+
+  "komunikat_pokaz": true,
+  "komunikat_tytul": "Zmiana od 14 listopada 2026 r.",
+  "komunikat_tekst": "Badanie psychologiczne kierowcy kosztuje 200 zł, wcześniej 150 zł. To opłata urzędowa, taka sama w każdej pracowni.",
+  "komunikat_link": "/poradnik/psychotesty-200-zl-od-14-listopada-2026/",
+  "komunikat_link_tekst": "Kogo dotyczy zmiana",
+
+  "aktualizacja": "2026-11-18",
 
   "okolice": {
     "powiat częstochowski": ["Blachownia", "Poczesna", "Olsztyn", "Mykanów", "Rędziny", "Konopiska", "Mstów", "Kłomnice", "Kamienica Polska", "Janów", "Koniecpol", "Kruszyna", "Lelów", "Przyrów", "Dąbrowa Zielona", "Starcza"],

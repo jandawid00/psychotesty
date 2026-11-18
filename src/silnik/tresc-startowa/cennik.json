@@ -2,12 +2,14 @@
   {
     "nazwa": "Badanie psychologiczne kierowcy",
     "opis": "Psychologia transportu: kat. C, C+E i D, kod 95, taxi i przewóz osób, pojazdy uprzywilejowane, instruktorzy i egzaminatorzy, skierowanie starosty. Opłata urzędowa od 14 listopada 2026 r.",
-    "cena": "200 zł"
+    "cena": "200 zł",
+    "klucz": "cena_kierowcy"
   },
   {
     "nazwa": "Badanie psychotechniczne operatora",
     "opis": "Wózki widłowe, maszyny budowlane, suwnice, praca na wysokości. Na skierowanie z medycyny pracy.",
-    "cena": "[[… zł]]"
+    "cena": "[[… zł]]",
+    "klucz": "cena_operator"
   },
   {
     "nazwa": "Badanie kierowcy samochodu służbowego kat. B",
