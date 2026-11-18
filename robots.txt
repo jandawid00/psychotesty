@@ -1,3 +1,0 @@
-# Strona w przygotowaniu: podstrony mają znacznik noindex.
-User-agent: *
-Allow: /
